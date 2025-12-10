@@ -8,7 +8,7 @@ import { api } from '../utils/request'
 import { UploadIcon, ExclamationTriangleIcon, ImageIcon } from '../components/ui/icons'
 import { formatFileSize } from '../utils/imageUtils'
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 10MB
 
 interface UploadSectionProps {
   onUpload: (files: File[], expiryMinutes: number, tags: string[]) => Promise<void>
@@ -24,10 +24,10 @@ interface UploadSectionProps {
   onTagsChange?: (tags: string[]) => void
 }
 
-export default function UploadSection({ 
-  onUpload, 
-  isUploading, 
-  maxUploadCount = 20, 
+export default function UploadSection({
+  onUpload,
+  isUploading,
+  maxUploadCount = 20,
   onFilesSelected,
   onTogglePreview,
   isPreviewOpen,
@@ -95,7 +95,7 @@ export default function UploadSection({
   // 处理标签变化
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
-    
+
     // 通知父组件
     if (onTagsChange) {
       onTagsChange(tags);
@@ -141,17 +141,17 @@ export default function UploadSection({
 
     // 更新超大文件提示
     setOversizedFiles(oversized);
-    
+
     // 检查是否超过最大上传限制
     if (newFiles.length > maxUploadCount) {
       // 如果超过限制，只保留前 maxUploadCount 张图片
       const allowedFiles = newFiles.slice(0, maxUploadCount);
       const allowedDetails = newDetails.slice(0, maxUploadCount);
-      
+
       setSelectedFiles(allowedFiles);
       setFileDetails(allowedDetails);
       setExceedsLimit(true);
-      
+
       // 通知父组件
       if (onFilesSelected) {
         onFilesSelected(allowedDetails);
@@ -160,7 +160,7 @@ export default function UploadSection({
       setSelectedFiles(newFiles);
       setFileDetails(newDetails);
       setExceedsLimit(false);
-      
+
       // 通知父组件
       if (onFilesSelected) {
         onFilesSelected(newDetails);
