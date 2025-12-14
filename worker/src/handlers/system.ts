@@ -8,7 +8,7 @@ import { successResponse, errorResponse } from '../utils/response';
 // Default configuration
 const DEFAULT_CONFIG: Config = {
   maxUploadCount: 20,
-  maxFileSize: 10 * 1024 * 1024, // 10MB
+  maxFileSize: 70 * 1024 * 1024, // 70MB
   supportedFormats: ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif'],
   imageQuality: 80
 };

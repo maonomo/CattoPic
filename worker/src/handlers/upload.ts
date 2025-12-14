@@ -7,9 +7,12 @@ import { ImageProcessor } from '../services/imageProcessor';
 import { CompressionService, parseCompressionOptions } from '../services/compression';
 import { successResponse, errorResponse } from '../utils/response';
 import { generateImageId, parseTags, parseNumber } from '../utils/validation';
+import { buildImageUrls } from '../utils/imageTransform';
 
 // Maximum file size: 70MB (Cloudflare Images Binding limit)
 const MAX_FILE_SIZE = 70 * 1024 * 1024;
+// Cloudflare Images transformation limit: 10MB (fallback to Transform-URL for larger images)
+const CLOUDFLARE_IMAGES_MAX_BYTES = 10 * 1024 * 1024;
 
 /**
  * Single file upload handler - processes one image with full parallelization
@@ -95,8 +98,10 @@ export async function uploadSingleHandler(c: Context<{ Bindings: Env }>): Promis
         paths.avif = paths.original;
         avifSize = file.size;
       }
-    } else if (compression) {
+    } else if (compression && file.size <= CLOUDFLARE_IMAGES_MAX_BYTES) {
       const compressionPromise = compression.compress(arrayBuffer, imageInfo.format, compressionOptions);
+      const wantsWebp = compressionOptions.generateWebp !== false;
+      const wantsAvif = compressionOptions.generateAvif !== false;
 
       // Ensure original is uploaded while compression runs
       await originalUploadPromise;
@@ -104,7 +109,7 @@ export async function uploadSingleHandler(c: Context<{ Bindings: Env }>): Promis
       const compressionResult = await compressionPromise;
       const uploadPromises: Promise<void>[] = [];
 
-      if (compressionOptions.generateWebp !== false && compressionResult.webp) {
+      if (wantsWebp && compressionResult.webp) {
         paths.webp = generatedPaths.webp;
         uploadPromises.push(
           storage.upload(paths.webp, compressionResult.webp.data, 'image/webp')
@@ -112,7 +117,7 @@ export async function uploadSingleHandler(c: Context<{ Bindings: Env }>): Promis
         );
       }
 
-      if (compressionOptions.generateAvif !== false && compressionResult.avif) {
+      if (wantsAvif && compressionResult.avif) {
         paths.avif = generatedPaths.avif;
         uploadPromises.push(
           storage.upload(paths.avif, compressionResult.avif.data, 'image/avif')
@@ -123,9 +128,21 @@ export async function uploadSingleHandler(c: Context<{ Bindings: Env }>): Promis
       if (uploadPromises.length > 0) {
         await Promise.all(uploadPromises);
       }
+
+      // If compression failed for some formats, fall back to Transform-URL via marker paths.
+      if (wantsWebp && !paths.webp) {
+        paths.webp = paths.original;
+      }
+      if (wantsAvif && !paths.avif) {
+        paths.avif = paths.original;
+      }
     } else {
-      // No compression service: only store original
+      // Skip compression (too large or no Images binding): store original + use Transform-URL via marker paths
       await originalUploadPromise;
+      const wantsWebp = compressionOptions.generateWebp !== false;
+      const wantsAvif = compressionOptions.generateAvif !== false;
+      if (wantsWebp) paths.webp = paths.original;
+      if (wantsAvif) paths.avif = paths.original;
     }
 
     // Calculate expiry time
@@ -158,13 +175,18 @@ export async function uploadSingleHandler(c: Context<{ Bindings: Env }>): Promis
 
     // Build result
     const baseUrl = c.env.R2_PUBLIC_URL;
+    const urls = buildImageUrls({
+      baseUrl,
+      image: imageMetadata,
+      options: compressionOptions,
+    });
     const result: UploadResult = {
       id,
       status: 'success',
       urls: {
-        original: `${baseUrl}/${paths.original}`,
-        webp: !isGif && paths.webp ? `${baseUrl}/${paths.webp}` : '',
-        avif: !isGif && paths.avif ? `${baseUrl}/${paths.avif}` : '',
+        original: urls.original,
+        webp: urls.webp,
+        avif: urls.avif,
       },
       orientation: imageInfo.orientation,
       tags,

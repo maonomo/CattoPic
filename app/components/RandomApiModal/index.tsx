@@ -28,24 +28,26 @@ export default function RandomApiModal({ isOpen, onClose }: RandomApiModalProps)
 
   // 构建 URL
   const generatedUrl = useMemo(() => {
-    const baseUrl = process.env.NEXT_PUBLIC_WORKER_URL || 'https://your-worker.workers.dev';
-    const params = new URLSearchParams();
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      process.env.NEXT_PUBLIC_WORKER_URL ||
+      'https://your-worker.workers.dev';
+    const url = new URL('/api/random', baseUrl);
 
     if (includeTags.length > 0) {
-      params.set('tags', includeTags.join(','));
+      url.searchParams.set('tags', includeTags.join(','));
     }
     if (excludeTags.length > 0) {
-      params.set('exclude', excludeTags.join(','));
+      url.searchParams.set('exclude', excludeTags.join(','));
     }
     if (orientation !== 'auto') {
-      params.set('orientation', orientation);
+      url.searchParams.set('orientation', orientation);
     }
     if (format !== 'auto') {
-      params.set('format', format);
+      url.searchParams.set('format', format);
     }
 
-    const queryString = params.toString();
-    return queryString ? `${baseUrl}/api/random?${queryString}` : `${baseUrl}/api/random`;
+    return url.toString();
   }, [includeTags, excludeTags, orientation, format]);
 
   // 切换包含标签

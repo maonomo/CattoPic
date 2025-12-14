@@ -15,6 +15,11 @@
   - 支持为所有图片设置统一标签
   - 自动跳过非图片文件和超过 70MB 的文件
 
+### 变更
+
+- 当 WebP/AVIF 文件未生成/缺失时（例如超过 10MB 的上传），改用 Cloudflare Transform Images URL（`/cdn-cgi/image/...`）作为兜底输出方式。
+
 ### 修复
 
 - 修复删除图片后上传页/管理页未及时刷新（TanStack Query 缓存 + recent uploads 列表导致需强刷）。
+- 修复管理页「随机图 API 生成器」未使用 `NEXT_PUBLIC_API_URL`，仍输出占位链接 `https://your-worker.workers.dev` 的问题。

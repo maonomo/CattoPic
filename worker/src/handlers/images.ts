@@ -4,6 +4,9 @@ import { MetadataService } from '../services/metadata';
 import { CacheService, CacheKeys, CACHE_TTL } from '../services/cache';
 import { successResponse, errorResponse, notFoundResponse } from '../utils/response';
 import { parseNumber, validateOrientation, parseTags, isValidUUID } from '../utils/validation';
+import { buildImageUrls } from '../utils/imageTransform';
+
+const CLOUDFLARE_IMAGES_MAX_BYTES = 10 * 1024 * 1024;
 
 // GET /api/images - List images with pagination and filters
 export async function imagesHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
@@ -39,9 +42,14 @@ export async function imagesHandler(c: Context<{ Bindings: Env }>): Promise<Resp
     const imagesWithUrls = images.map(img => ({
       ...img,
       urls: {
-        original: `${baseUrl}/${img.paths.original}`,
-        webp: img.paths.webp ? `${baseUrl}/${img.paths.webp}` : '',
-        avif: img.paths.avif ? `${baseUrl}/${img.paths.avif}` : ''
+        ...buildImageUrls({
+          baseUrl,
+          image: img,
+          options: {
+            generateWebp: !!img.paths.webp || img.sizes.original > CLOUDFLARE_IMAGES_MAX_BYTES,
+            generateAvif: !!img.paths.avif || img.sizes.original > CLOUDFLARE_IMAGES_MAX_BYTES,
+          },
+        }),
       }
     }));
 
@@ -98,9 +106,14 @@ export async function imageDetailHandler(c: Context<{ Bindings: Env }>): Promise
       image: {
         ...image,
         urls: {
-          original: `${baseUrl}/${image.paths.original}`,
-          webp: image.paths.webp ? `${baseUrl}/${image.paths.webp}` : '',
-          avif: image.paths.avif ? `${baseUrl}/${image.paths.avif}` : ''
+          ...buildImageUrls({
+            baseUrl,
+            image,
+            options: {
+              generateWebp: !!image.paths.webp || image.sizes.original > CLOUDFLARE_IMAGES_MAX_BYTES,
+              generateAvif: !!image.paths.avif || image.sizes.original > CLOUDFLARE_IMAGES_MAX_BYTES,
+            },
+          }),
         }
       }
     };
@@ -165,9 +178,14 @@ export async function updateImageHandler(c: Context<{ Bindings: Env }>): Promise
       image: {
         ...updated,
         urls: {
-          original: `${baseUrl}/${updated.paths.original}`,
-          webp: updated.paths.webp ? `${baseUrl}/${updated.paths.webp}` : '',
-          avif: updated.paths.avif ? `${baseUrl}/${updated.paths.avif}` : ''
+          ...buildImageUrls({
+            baseUrl,
+            image: updated,
+            options: {
+              generateWebp: !!updated.paths.webp || updated.sizes.original > CLOUDFLARE_IMAGES_MAX_BYTES,
+              generateAvif: !!updated.paths.avif || updated.sizes.original > CLOUDFLARE_IMAGES_MAX_BYTES,
+            },
+          }),
         }
       }
     });
