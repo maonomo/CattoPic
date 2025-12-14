@@ -102,11 +102,18 @@ export async function renameTagHandler(c: Context<{ Bindings: Env }>): Promise<R
 export async function deleteTagHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
   try {
     const name = decodeURIComponent(c.req.param('name'));
+    console.log(`[deleteTag] start: name=${name}`);
 
     const metadata = new MetadataService(c.env.DB);
 
     // 1. 获取关联图片（一次查询，保存路径供队列使用）
-    const images = await metadata.getImagePathsByTag(name);
+    let images;
+    try {
+      images = await metadata.getImagePathsByTag(name);
+    } catch (err) {
+      console.error(`[deleteTag] getImagePathsByTag failed: name=${name}`, err);
+      throw err;
+    }
     const imagePaths = images.map(img => ({
       id: img.id,
       paths: {
@@ -115,25 +122,45 @@ export async function deleteTagHandler(c: Context<{ Bindings: Env }>): Promise<R
         avif: img.paths.avif || undefined,
       },
     }));
+    console.log(`[deleteTag] images matched: name=${name} count=${imagePaths.length}`);
 
     // 2. 同步删除 D1 中的标签和图片元数据
-    const { deletedImages } = await metadata.deleteTagWithImages(name);
+    let deletedImages: number;
+    try {
+      ({ deletedImages } = await metadata.deleteTagWithImages(name));
+    } catch (err) {
+      console.error(`[deleteTag] deleteTagWithImages failed: name=${name}`, err);
+      throw err;
+    }
+    console.log(`[deleteTag] D1 delete completed: name=${name} deletedImages=${deletedImages}`);
 
     // 3. 同步失效 KV 缓存
     const cache = new CacheService(c.env.CACHE_KV);
-    await cache.invalidateAfterTagChange();
+    try {
+      await cache.invalidateAfterTagChange();
+    } catch (err) {
+      console.error(`[deleteTag] cache invalidation failed: name=${name}`, err);
+      throw err;
+    }
 
     // 4. 异步删除 R2 文件（通过 Queue 后台处理）
     if (imagePaths.length > 0) {
       // Avoid large queue payloads by chunking
       const chunkSize = 50;
       for (let i = 0; i < imagePaths.length; i += chunkSize) {
-        await c.env.DELETE_QUEUE.send({
-          type: 'delete_tag_images',
-          tagName: name,
-          imagePaths: imagePaths.slice(i, i + chunkSize),
-        });
+        const chunk = imagePaths.slice(i, i + chunkSize);
+        try {
+          await c.env.DELETE_QUEUE.send({
+            type: 'delete_tag_images',
+            tagName: name,
+            imagePaths: chunk,
+          });
+        } catch (err) {
+          console.error(`[deleteTag] queue send failed: name=${name} chunk=${i}-${i + chunk.length - 1}`, err);
+          throw err;
+        }
       }
+      console.log(`[deleteTag] queued R2 deletions: name=${name} chunks=${Math.ceil(imagePaths.length / chunkSize)}`);
     }
 
     return successResponse({
