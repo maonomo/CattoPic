@@ -10,7 +10,7 @@ compatibility_flags = ['nodejs_compat']
 [vars]
 ENVIRONMENT = 'production'
 # Your R2 bucket public URL (custom domain or workers.dev URL)
-R2_PUBLIC_URL = '<your-r2-public-url>'
+R2_PUBLIC_URL = 'https://pic.linyuan.com'
 
 # Images binding for image transformations (Cloudflare Images)
 [images]
