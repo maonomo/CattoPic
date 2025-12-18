@@ -39,12 +39,12 @@ id = "fa8d93e30a594570933be552ff3dbed7"
 # Queue for async R2 deletion
 [[queues.producers]]
 # Your queue name
-queue = "DELETE_QUEUE"
+queue = "cattopic-delete-queue-v2"
 binding = "DELETE_QUEUE"
 
 [[queues.consumers]]
 # Same queue name as above
-queue = "DELETE_QUEUE"
+queue = "cattopic-delete-queue-v2"
 max_batch_size = 10
 max_batch_timeout = 5
 
