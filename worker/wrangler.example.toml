@@ -20,7 +20,7 @@ binding = "IMAGES"
 [[r2_buckets]]
 binding = 'R2_BUCKET'
 # Your R2 bucket name
-bucket_name = 'cattopic_r2'
+bucket_name = 'cattopic-r2'
 
 # D1 Database binding
 [[d1_databases]]
